@@ -15,7 +15,10 @@ clock = pygame.time.Clock()
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, screen):
-        self.image = pygame.Surface((50,50))
+        self.width = 50
+        self.height = 50
+
+        self.image = pygame.Surface((self.width, self.height))
         self.image.fill(pygame.Color(69,69,69))
 
         self.rect = self.image.get_rect()
@@ -39,7 +42,14 @@ class Player(pygame.sprite.Sprite):
             move.scale_to_length(5)
             self.rect.move_ip(round(move.x), round(move.y))
 
+    def collisions(self):
+        self.image.fill(pygame.Color(69,69,69))
+        if self.rect.x + self.width >= enemy.rect.x and self.rect.x <= enemy.rect.x + enemy.width:
+            if self.rect.y + self.height >= enemy.rect.y and self.rect.y <= enemy.rect.y + enemy.height:
+                self.image.fill(pygame.Color(144,0,0))
+
     def draw(self):
+        self.collisions()
         self.screen.blit(self.image, self.rect)
         self.update()
 
@@ -62,10 +72,29 @@ class Ground(pygame.sprite.Sprite):
     def draw(self):
         self.screen.blit(self.ground_image, self.rect)
 
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, screen):
+        self.width = 40
+        self.height = 40
 
+        self.image = pygame.Surface((self.width, self.height))
+        self.image.fill(pygame.Color(79,33,2))
+
+        self.rect = self.image.get_rect()
+        
+        self.screen = screen
+        
+        self.x = 300
+        self.y = 300
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+    def draw(self):
+        self.screen.blit(self.image, self.rect)
 
 ground = Ground(screen)
 player = Player(screen)
+enemy = Enemy(screen)
 
 
 main = True
@@ -76,20 +105,13 @@ while main:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             main = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_RIGHT:
-                player.rect.x += 5
-            if event.key == pygame.K_LEFT:
-                player.rect.x -= 5
-            if event.key == pygame.K_DOWN:
-                player.rect.y += 5
-            if event.key == pygame.K_UP:
-                player.rect.y -= 5
+        
 
     
     ground.draw()
     player.move()
     player.draw()
+    enemy.draw()
 
     pygame.display.flip()
     
