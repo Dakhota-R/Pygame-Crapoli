@@ -13,13 +13,18 @@ SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
 
+player_animations = [pygame.transform.scale(pygame.image.load("New Piskel.png").convert_alpha(), (50,50))]
+ground_tiles = [pygame.transform.scale(pygame.image.load(f"GroundTiles\grass_{i}.png"), (50,50)) for i in range(2)]
+tree = pygame.transform.scale(pygame.image.load("tree.png"), (50,50))
+
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, screen):
         self.width = 50
         self.height = 50
 
-        self.image = pygame.Surface((self.width, self.height))
-        self.image.fill(pygame.Color(69,69,69))
+        self.image = player_animations[0]
 
         self.rect = self.image.get_rect()
 
@@ -43,10 +48,9 @@ class Player(pygame.sprite.Sprite):
             self.rect.move_ip(round(move.x), round(move.y))
 
     def collisions(self):
-        self.image.fill(pygame.Color(69,69,69))
         if self.rect.x + self.width >= enemy.rect.x and self.rect.x <= enemy.rect.x + enemy.width:
             if self.rect.y + self.height >= enemy.rect.y and self.rect.y <= enemy.rect.y + enemy.height:
-                self.image.fill(pygame.Color(144,0,0))
+                pass
 
     def draw(self):
         self.collisions()
@@ -56,20 +60,20 @@ class Player(pygame.sprite.Sprite):
 
 # ground object just a warmup for me, delete  when ready
 class Ground(pygame.sprite.Sprite):
-    def __init__(self, screen):
-        self.ground_image = pygame.Surface((40,40))
-        self.ground_image.fill(pygame.Color(40,40,40))
+    def __init__(self, screen, tile_index, x_pos, y_pos):
+        self.ground_image = ground_tiles[tile_index]
 
         self.rect = self.ground_image.get_rect()
 
         self.screen = screen
 
-        self.x = 100
-        self.y = 100
+        self.x = x_pos
+        self.y = y_pos
         self.rect.x = self.x
         self.rect.y = self.y
 
-    def draw(self):
+
+    def draw(self, player_x, player_y):
         self.screen.blit(self.ground_image, self.rect)
 
 class Enemy(pygame.sprite.Sprite):
@@ -92,10 +96,41 @@ class Enemy(pygame.sprite.Sprite):
     def draw(self):
         self.screen.blit(self.image, self.rect)
 
-ground = Ground(screen)
+class Tree(pygame.sprite.Sprite):
+    def __init__(self, screen):
+        self.image = tree
+        self.rect = self.image.get_rect()
+        self.screen = screen
+        self.x = 300
+        self.y = 300
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+    def draw(self):
+        self.screen.blit(self.image, self.rect)
+
+
 player = Player(screen)
 enemy = Enemy(screen)
+tree = Tree(screen)
 
+level = [
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+]
+
+ground_group = []
+
+for row_index, row in enumerate(level):
+    x = row_index * 50
+    for tile_index, tile in enumerate(row):
+        y = tile_index * 50
+        ground = Ground(screen, tile, x, y)
+        ground_group.append(ground)
 
 main = True
 while main:
@@ -107,11 +142,12 @@ while main:
             main = False
         
 
-    
-    ground.draw()
+    for tile in ground_group:
+        tile.draw(player.x, player.y)
     player.move()
     player.draw()
     enemy.draw()
+    tree.draw()
 
     pygame.display.flip()
     
