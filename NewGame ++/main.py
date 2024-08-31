@@ -17,7 +17,40 @@ player_animations = [pygame.transform.scale(pygame.image.load("New Piskel.png").
 ground_tiles = [pygame.transform.scale(pygame.image.load(f"GroundTiles\grass_{i}.png"), (50,50)) for i in range(2)]
 tree = pygame.transform.scale(pygame.image.load("tree.png"), (50,50))
 
+camera_pos = [0, 0]
 
+class Inventory(pygame.sprite.Sprite):
+    def __init__(self, screen):
+        self.width = SCREEN_WIDTH
+        self.height = SCREEN_HEIGHT / 5
+
+        self.screen = screen
+
+        self.image = pygame.Surface((self.width, self.height))
+        self.image.fill(pygame.Color(35,40,45))
+        self.rect = self.image.get_rect()
+        self.rect.y = SCREEN_HEIGHT - self.height
+
+    def draw(self, world):
+        world.blit(self.image, self.rect)
+
+class InventoryItems(pygame.sprite.Sprite):
+    def __init__(self, screen, pos_x, pos_y):
+        self.width = 40
+        self.height = 40
+
+        self.screen = screen
+
+        self.image = pygame.Surface((self.width, self.height))
+        self.image.fill(pygame.Color(100,100,20))
+        self.rect = self.image.get_rect()
+
+        self.rect.x = pos_x
+        self.rect.y = pos_y
+
+    def draw(self, world):
+        world.blit(self.image, self.rect)
+        
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, screen):
@@ -29,13 +62,15 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
 
         self.screen = screen
-
-        self.x = 200
-        self.y = 200
+        self.x = (SCREEN_WIDTH / 4) - self.width / 2
+        self.y = (SCREEN_HEIGHT / 4) - self.height
         self.rect.x = self.x
         self.rect.y = self.y
 
-    def move(self):
+    def move(self, camera_pos):
+        camera_pos_x = camera_pos[0]
+        camera_pos_y = camera_pos[1]
+
         keys = pygame.key.get_pressed()
         right = keys[pygame.K_d]
         left = keys[pygame.K_a]
@@ -45,36 +80,38 @@ class Player(pygame.sprite.Sprite):
         move = pygame.math.Vector2(right - left, down - up)
         if move.length_squared() > 0:
             move.scale_to_length(5)
+            camera_pos_x -= round(move.x)
+            camera_pos_y -= round(move.y)
             self.rect.move_ip(round(move.x), round(move.y))
+        
+        return [camera_pos_x, camera_pos_y]
+    
 
     def collisions(self):
         if self.rect.x + self.width >= enemy.rect.x and self.rect.x <= enemy.rect.x + enemy.width:
             if self.rect.y + self.height >= enemy.rect.y and self.rect.y <= enemy.rect.y + enemy.height:
                 pass
 
-    def draw(self):
+    def draw(self, world):
         self.collisions()
-        self.screen.blit(self.image, self.rect)
-        self.update()
+        world.blit(self.image, self.rect)
 
 
 # ground object just a warmup for me, delete  when ready
 class Ground(pygame.sprite.Sprite):
-    def __init__(self, screen, tile_index, x_pos, y_pos):
+    def __init__(self, tile_index, x_pos, y_pos):
         self.ground_image = ground_tiles[tile_index]
 
         self.rect = self.ground_image.get_rect()
 
-        self.screen = screen
 
         self.x = x_pos
         self.y = y_pos
         self.rect.x = self.x
         self.rect.y = self.y
 
-
-    def draw(self, player_x, player_y):
-        self.screen.blit(self.ground_image, self.rect)
+    def draw(self, world):
+        world.blit(self.ground_image, self.rect)
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, screen):
@@ -110,9 +147,17 @@ class Tree(pygame.sprite.Sprite):
         self.screen.blit(self.image, self.rect)
 
 
-player = Player(screen)
+inventory = Inventory(screen)
 enemy = Enemy(screen)
 tree = Tree(screen)
+
+
+items_group = []
+items = [0,0,0]
+for index, item in enumerate(items):
+    item = InventoryItems(screen, index * 50, SCREEN_HEIGHT - 40)
+    items_group.append(item)
+
 
 level = [
     [0,0,0,0,0,0],
@@ -129,27 +174,43 @@ for row_index, row in enumerate(level):
     x = row_index * 50
     for tile_index, tile in enumerate(row):
         y = tile_index * 50
-        ground = Ground(screen, tile, x, y)
+        ground = Ground(tile, x, y)
         ground_group.append(ground)
 
-main = True
-while main:
-    clock.tick(60)
-    screen.fill('black')
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            main = False
-        
+def Main(screen, clock):
+    world = pygame.Surface((800, 600))
 
-    for tile in ground_group:
-        tile.draw(player.x, player.y)
-    player.move()
-    player.draw()
-    enemy.draw()
-    tree.draw()
+    player = Player(screen)
+    camera_pos = (200,200)
 
-    pygame.display.flip()
+    while True:
+        clock.tick(60)
+        world.fill('black')
+        screen.fill('black')
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+
+        for tile in ground_group:
+            tile.draw(world)
+
+        camera_pos = player.move(camera_pos)
+
+        player.draw(world)
+        enemy.draw()
+        tree.draw()
+        inventory.draw(world)
+
+        for item in items_group:
+            item.draw(world)
+
+        screen.blit(world, camera_pos)
+
+        pygame.display.flip()
     
 
-pygame.quit()
+while __name__ == '__main__':
+    Main(screen, clock)
