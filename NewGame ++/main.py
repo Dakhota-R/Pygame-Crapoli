@@ -30,11 +30,10 @@ SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
 
+cauldron_sprite = [pygame.transform.scale(pygame.image.load("assets\cauldron_transparent.png"), (160,160))]
 player_animations = [pygame.transform.scale(pygame.image.load("assets\greenpawnguy.png").convert_alpha(), (80,80))]
-ground_tiles = [pygame.transform.scale(pygame.image.load(f"assets\iso_tiles_{i}.png"), (80,80)) for i in range(4)]
+ground_tiles = [pygame.transform.scale(pygame.image.load(f"assets\iso_tiles_{i}.png"), (80,80)) for i in range(5)]
 tree = pygame.transform.scale(pygame.image.load("tree.png"), (50,50))
-
-camera_pos = [0, 0]
 
 class Inventory(pygame.sprite.Sprite):
     def __init__(self, screen):
@@ -85,6 +84,10 @@ class Player(pygame.sprite.Sprite):
 
         self.row = 0
         self.column = 0
+        
+        self.is_moving = False
+        
+        self.target_pos = (0,0)
 
         self.collide_box = self.rect.inflate(2,2)
 
@@ -92,8 +95,8 @@ class Player(pygame.sprite.Sprite):
         target_column = self.column + column_increment
         target_row = self.row + row_increment
         for tile in tile_list:
-            print(target_column)
-            if tile.column == target_column and tile.row == target_row and tile.tile_index == 1:
+            #print(target_column)
+            if tile.column == target_column and tile.row == target_row and tile.tile_index == 1 and tile.is_walkable == True:
                 self.column = tile.column
                 self.row = tile.row               
                 target_rect = tile.rect
@@ -101,9 +104,26 @@ class Player(pygame.sprite.Sprite):
                 #self.rect.x = tile.rect.x
                 #self.rect.y = tile.rect.y - 40
                 
-    def animateMove(self, target_rect):
-        self.rect.x = target_rect.x
-        self.rect.y = target_rect.y - 40
+                
+    def animateMove(self):
+        if self.is_moving:
+            player_pos = pygame.math.Vector2(self.rect.x, self.rect.y)
+            new_pos = pygame.math.Vector2.move_towards(player_pos, self.target_pos, 2)
+            self.rect.x = new_pos.x
+            self.rect.y = new_pos.y
+            if self.rect.x == self.target_pos[0] and self.rect.y == self.target_pos[1]:
+                pass
+
+                
+    def getTargetPos(self, target_rect):
+        self.target_pos = target_rect.x, target_rect.y - 40
+
+        
+        #self.rect.x = target_rect.x
+        #self.rect.y = target_rect.y - 40
+        
+
+                
 
     def move(self, camera_pos, tile_list, wall_list, dx, dy):
         self.collide_box.center = self.rect.center
@@ -115,22 +135,22 @@ class Player(pygame.sprite.Sprite):
         if dx == 1:
             target_rect = self.changeTile(tile_list, 0, 1)
             if target_rect:
-                self.animateMove(target_rect)
+                self.getTargetPos(target_rect)
             dx = 0
         elif dy == 1:
             target_rect = self.changeTile(tile_list, 1, 0)
             if target_rect:
-                self.animateMove(target_rect)
+                self.getTargetPos(target_rect)
             dy = 0
         elif dx == -1:
             target_rect = self.changeTile(tile_list, 0, -1)
             if target_rect:
-                self.animateMove(target_rect)
+                self.getTargetPos(target_rect)
             dx = 0
         elif dy == -1:
             target_rect = self.changeTile(tile_list, -1, 0)
             if target_rect:
-                self.animateMove(target_rect)
+                self.getTargetPos(target_rect)
             dx = 0
 
 
@@ -138,13 +158,16 @@ class Player(pygame.sprite.Sprite):
         camera_pos_y = -self.rect.y + ((SCREEN_HEIGHT / 2) - self.height)
             
         if target_rect:
-            self.animateMove(target_rect)
+            self.getTargetPos(target_rect)
 
         
         return [camera_pos_x, camera_pos_y], dx, dy
 
+    def update(self):
+        self.animateMove()
 
     def draw(self, world):
+        self.update()
         world.blit(self.image, self.rect)
 
 class Ground(pygame.sprite.Sprite):
@@ -162,42 +185,11 @@ class Ground(pygame.sprite.Sprite):
         self.y = y_pos
         self.rect.x = self.x
         self.rect.y = self.y
+        
+        self.is_walkable = True
 
     def draw(self, world):
         world.blit(self.ground_image, self.rect)
-
-class Enemy(pygame.sprite.Sprite):
-    def __init__(self, screen):
-        self.width = 40
-        self.height = 40
-
-        self.image = pygame.Surface((self.width, self.height))
-        self.image.fill(pygame.Color(79,33,2))
-
-        self.rect = self.image.get_rect()
-        
-        self.screen = screen
-        
-        self.x = 300
-        self.y = 300
-        self.rect.x = self.x
-        self.rect.y = self.y
-
-    def draw(self):
-        self.screen.blit(self.image, self.rect)
-
-class Tree(pygame.sprite.Sprite):
-    def __init__(self, screen):
-        self.image = tree
-        self.rect = self.image.get_rect()
-        self.screen = screen
-        self.x = 300
-        self.y = 300
-        self.rect.x = self.x
-        self.rect.y = self.y
-
-    def draw(self):
-        self.screen.blit(self.image, self.rect)
         
 class Wall(pygame.sprite.Sprite):
     def __init__(self, world, tile_x, tile_y):
@@ -214,12 +206,35 @@ class Wall(pygame.sprite.Sprite):
     def draw(self):
         self.world.blit(self.image, self.rect)
 
+class Cauldron(pygame.sprite.Sprite):
+    def __init__(self, screen):
+        self.screen = screen
+        
+        self.image = cauldron_sprite[0]
+        self.rect = self.image.get_rect()
 
+        self.rect.x = 0
+        self.rect.y = 0
+        
+        self.spawned = False
+        
+        self.row = 0
+        self.column = 0 
+        
+    def draw(self, tile_list): 
+        for tile in tile_list:
+            if tile.row == self.row - 1 and tile.column == self.column:
+                tile.is_walkable = False
+            if tile.row == self.row and tile.column == self.column - 1:
+                tile.is_walkable = False
+            if tile.row == self.row - 1 and tile.column == self.column - 1:
+                tile.is_walkable = False
+        #print(self.row, self.column)
+        self.screen.blit(self.image, self.rect)
 
 
 inventory = Inventory(screen)
-enemy = Enemy(screen)
-tree = Tree(screen)
+
 
 
 items_group = []
@@ -238,12 +253,12 @@ level = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [0, 1, 2, 3, 0, 0, 0, 0, 0, 0]
+    [1, 1, 1, 1, 1, 3, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [0, 1, 2, 4, 0, 0, 0, 0, 0, 0, 1]
          ]
 #===================================
 
@@ -267,26 +282,32 @@ for i in range(10):
 # Main function
 def Main(screen, clock):
     game_started = False
+    cauldron_spawned = False
     world = pygame.Surface((len(level[0]) * 500, len(level) * 500))
+    
+    cauldron = Cauldron(world)
 
     player = Player(screen)
-    camera_pos = ()
 
     moving_left = False
     moving_right = False
     moving_up = False
     moving_down = False
+
+    camera_pos = [0, 0]
     
     
     ground_group = []
     wall_group = []
     for row_index, row in enumerate(level):
         for tile_index, tile in enumerate(row):
-            if tile != 3:
+            if tile == 2 or 3:
                 ground = Ground(tile, 600  + (row_index + 1) * tile_offset_1 - (tile_index + 1) * tile_offset_1, 
                                     100 + (row_index + 1) * tile_offset_2 + (tile_index + 1) * tile_offset_2)
                 ground.row = row_index
                 ground.column = tile_index
+                if tile == 3:
+                    ground.is_walkable = False
                 ground_group.append(ground)
             elif tile == 3:
                 pass
@@ -313,12 +334,16 @@ def Main(screen, clock):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_s:
                     dx = 1
+                    player.is_moving = True
                 if event.key == pygame.K_d:
                     dy = 1
+                    player.is_moving = True
                 if event.key == pygame.K_a:
                     dy = -1
+                    player.is_moving = True
                 if event.key == pygame.K_w:
                     dx = -1
+                    player.is_moving = True
 
         # draw world tiles
         for tile in ground_group:
@@ -329,11 +354,22 @@ def Main(screen, clock):
                     player.rect.x, player.rect.y = tile.x, tile.y - 40
                     player.row = tile.row
                     player.column = tile.column
-                    camera_pos = (player.x - 50, player.y - 100)
+                    camera_pos = [player.x - 50, player.y - 100]
                     game_started = True
-
+            # set cauldron pos
+            if tile.tile_index == 3:
+                if not cauldron_spawned:
+                    cauldron.rect.x, cauldron.rect.y = tile.x - 30, tile.y - 130
+                    cauldron.row = tile.row
+                    cauldron.column = tile.column
+                    cauldron_spawned = True
+            
+        # draw walls
         for wall in wall_group:
             wall.draw()
+            
+        
+        cauldron.draw(ground_group)
 
 
         camera_pos, dx, dy = player.move(camera_pos, ground_group, wall_group, dx, dy)
